@@ -6,6 +6,16 @@ import { putObject } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
+
+function timeout<T>(promise: Promise<T>, ms: number, message: string) {
+  return Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(message)), ms);
+    })
+  ]);
+}
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -26,9 +36,15 @@ export async function POST(request: Request) {
   const contentType = isPdf ? "application/pdf" : file.type || "image/jpeg";
   const stored = await putObject(`uploads/${user.id}/${storedName}`, buffer, contentType, `uploads/${storedName}`);
 
-  const extraction = isPdf
-    ? await extractPdfText(buffer)
-    : { text: await extractImageOcrText(buffer), method: "image-ocr" as const, usedOcr: true };
+  let extraction: { text: string; method: "pdf-parse" | "ocr-fallback" | "image-ocr"; usedOcr: boolean };
+  try {
+    extraction = isPdf
+      ? await timeout(extractPdfText(buffer), 50_000, "PDF parsing took too long. Try a smaller PDF or a clearer scan.")
+      : { text: await timeout(extractImageOcrText(buffer), 50_000, "Image OCR took too long. Try cropping the photo closer to the work order or upload a PDF scan."), method: "image-ocr" as const, usedOcr: true };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Could not extract text from this file.";
+    return NextResponse.json({ error: message }, { status: 422 });
+  }
   let draft = parseWorkOrder(extraction.text);
   let headerOcrUsed = false;
   if (isPdf && !draft.company) {

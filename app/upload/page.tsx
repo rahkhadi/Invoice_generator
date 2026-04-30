@@ -16,19 +16,35 @@ export default function UploadPage() {
     setError("");
     const form = event.currentTarget;
     const formData = new FormData(form);
-    const response = await fetch("/api/upload-work-order", { method: "POST", body: formData });
-    if (!response.ok) {
-      if (response.status === 401) {
-        router.push("/login");
-        return;
-      }
-      setError((await response.json()).error || "Upload failed.");
+    const controller = new AbortController();
+    const timer = window.setTimeout(() => controller.abort(), 70_000);
+    let response: Response;
+    try {
+      response = await fetch("/api/upload-work-order", { method: "POST", body: formData, signal: controller.signal });
+    } catch {
+      setError("Parsing took too long or the server stopped responding. Try cropping the image closer to the work order, then upload again.");
       setBusy(false);
+      window.clearTimeout(timer);
       return;
     }
-    const draft = (await response.json()) as InvoiceDraft;
-    sessionStorage.setItem("invoiceDraft", JSON.stringify(draft));
-    router.push("/invoices/new");
+    window.clearTimeout(timer);
+    try {
+      if (!response.ok) {
+        if (response.status === 401) {
+          router.push("/login");
+          return;
+        }
+        setError((await response.json()).error || "Upload failed.");
+        setBusy(false);
+        return;
+      }
+      const draft = (await response.json()) as InvoiceDraft;
+      sessionStorage.setItem("invoiceDraft", JSON.stringify(draft));
+      router.push("/invoices/new");
+    } catch {
+      setError("The upload finished with an unreadable response. Please try again.");
+      setBusy(false);
+    }
   }
 
   function createManualInvoice() {
@@ -51,7 +67,7 @@ export default function UploadPage() {
             <UploadCloud className="h-12 w-12 text-orange-500" />
             <input name="file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" required className="w-full max-w-md" />
             {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
-            <button disabled={busy} className="btn-primary" type="submit">{busy ? "Parsing file..." : "Parse work order"}</button>
+            <button disabled={busy} className="btn-primary" type="submit">{busy ? "Parsing file, this can take up to 1 minute..." : "Parse work order"}</button>
           </div>
         </form>
       </div>
