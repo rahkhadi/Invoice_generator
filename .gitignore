@@ -20,8 +20,8 @@ public/uploads/
 public/exports/
 
 # OCR/runtime caches
-eng.traineddata
 *.traineddata
+!eng.traineddata
 
 # logs
 npm-debug.log*

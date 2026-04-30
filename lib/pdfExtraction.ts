@@ -50,16 +50,6 @@ async function prepareImageForOcr(buffer: Buffer) {
   const canvas = createCanvas(width, height);
   const context = canvas.getContext("2d");
   context.drawImage(image, 0, 0, width, height);
-
-  const pixels = context.getImageData(0, 0, width, height);
-  for (let index = 0; index < pixels.data.length; index += 4) {
-    const grey = pixels.data[index] * 0.299 + pixels.data[index + 1] * 0.587 + pixels.data[index + 2] * 0.114;
-    const boosted = grey > 170 ? 255 : grey < 80 ? 0 : grey * 0.75;
-    pixels.data[index] = boosted;
-    pixels.data[index + 1] = boosted;
-    pixels.data[index + 2] = boosted;
-  }
-  context.putImageData(pixels, 0, 0);
   return canvas.toBuffer("image/png");
 }
 
