@@ -35,12 +35,17 @@ export async function POST(request: Request) {
   const storedName = `${Date.now()}-${file.name.replace(/[^a-z0-9.-]/gi, "_")}`;
   const contentType = isPdf ? "application/pdf" : file.type || "image/jpeg";
   const stored = await putObject(`uploads/${user.id}/${storedName}`, buffer, contentType, `uploads/${storedName}`);
+  const suppliedText = formData.get("extractedText");
 
   let extraction: { text: string; method: "pdf-parse" | "ocr-fallback" | "image-ocr"; usedOcr: boolean };
   try {
-    extraction = isPdf
-      ? await timeout(extractPdfText(buffer), 50_000, "PDF parsing took too long. Try a smaller PDF or a clearer scan.")
-      : { text: await timeout(extractImageOcrText(buffer), 50_000, "Image OCR took too long. Try cropping the photo closer to the work order or upload a PDF scan."), method: "image-ocr" as const, usedOcr: true };
+    if (typeof suppliedText === "string" && suppliedText.trim().length > 20) {
+      extraction = { text: suppliedText, method: "image-ocr" as const, usedOcr: true };
+    } else if (isPdf) {
+      extraction = await timeout(extractPdfText(buffer), 50_000, "PDF parsing took too long. Try a smaller PDF or a clearer scan.");
+    } else {
+      extraction = { text: await timeout(extractImageOcrText(buffer), 50_000, "Image OCR took too long. Try cropping the photo closer to the work order or upload a PDF scan."), method: "image-ocr" as const, usedOcr: true };
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : "Could not extract text from this file.";
     return NextResponse.json({ error: message }, { status: 422 });
