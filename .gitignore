@@ -1,0 +1,30 @@
+.DS_Store
+
+# dependencies
+node_modules/
+
+# Next.js
+.next/
+out/
+
+# local env/secrets
+.env
+.env*.local
+
+# local database
+prisma/dev.db
+prisma/dev.db-journal
+
+# local uploads/exports
+public/uploads/
+public/exports/
+
+# OCR/runtime caches
+eng.traineddata
+*.traineddata
+
+# logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*

@@ -1,0 +1,79 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Invoice {
+  id               String        @id @default(cuid())
+  userId           String?
+  user             User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  invoiceNumber    String
+  workOrderNumber  String?
+  workOrderId      String?
+  workOrderType    String?
+  contractor       String?
+  company          String?
+  myCompanyName    String?
+  myCompanyGstNumber String?
+  myCompanyAddress String?
+  address          String?
+  suite            String?
+  classification   String?
+  date             DateTime?
+  deadline         DateTime?
+  subtotal         Float         @default(0)
+  hst              Float         @default(0)
+  total            Float         @default(0)
+  status           String        @default("DRAFT")
+  paymentTerms     String?
+  notes            String?
+  rawExtractedText String?
+  uploadedPdfUrl   String?
+  generatedPdfUrl  String?
+  items            InvoiceItem[]
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+}
+
+model User {
+  id        String          @id @default(cuid())
+  name      String?
+  email     String          @unique
+  passwordHash String?
+  googleId  String?         @unique
+  image     String?
+  invoices  Invoice[]
+  profile   CompanyProfile?
+  createdAt DateTime        @default(now())
+  updatedAt DateTime        @updatedAt
+}
+
+model CompanyProfile {
+  id             String   @id @default(cuid())
+  userId         String   @unique
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  companyName    String?
+  gstNumber      String?
+  address        String?
+  phone          String?
+  email          String?
+  logoUrl        String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  area        String?
+  description String
+  qty         Float   @default(1)
+  uom         String?
+  unitPrice   Float   @default(0)
+  lineTotal   Float   @default(0)
+}
