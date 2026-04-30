@@ -126,13 +126,41 @@ function footerValueAfterTotal(lines: string[], offset: number) {
   return value && !findDates(value).length ? clean(value) : undefined;
 }
 
-function inferCompanyFromHeader(lines: string[]) {
+function inferCompanyDetailsFromHeader(lines: string[]) {
   const ignored = /^(date|order|id|contractor|location|w\/o|classification|deadline|document|description|qty|uom|price|ext|invoice|construction invoice)\b/i;
-  const companyLine = lines.slice(0, 12).find((line) => {
+  const headerLines = lines.slice(0, 12);
+  const companyIndex = headerLines.findIndex((line) => {
     if (ignored.test(line) || findDates(line).length) return false;
     return /\b(CONSTRUCTION|PROPERTY|MANAGEMENT|RENOVATION|RENOVATIONS|RESTORATION|MAINTENANCE|SERVICES|HOMES|BUILDERS|CONTRACTING|CONTRACTORS)\b/i.test(line);
   });
-  return companyLine ? clean(companyLine) : undefined;
+  if (companyIndex < 0) return {};
+  const company = clean(headerLines[companyIndex]);
+  const addressParts: string[] = [];
+  let phone: string | undefined;
+  for (const line of headerLines.slice(companyIndex + 1, companyIndex + 5)) {
+    if (/sales order|sold to|site|order date/i.test(line)) break;
+    const phoneMatch = /\d{3}[\d\s().-]{5,}\d{4}/.test(line) ? line.match(/P?\s*\(?\d{3}\)?[\d\s().-]+(?:F\s*\(?\d{3}\)?[\d\s().-]+)?/i) : undefined;
+    if (phoneMatch) {
+      phone = clean(phoneMatch[0]);
+      continue;
+    }
+    if (line.length > 3) addressParts.push(line);
+  }
+  return {
+    company,
+    companyAddress: addressParts.length ? clean(addressParts.join(", ")) : undefined,
+    companyPhone: phone
+  };
+}
+
+function parsePartyBlock(lines: string[], label: "sold to" | "site") {
+  const joined = lines.join("\n");
+  const match = joined.match(new RegExp(`${label}\\s*[:#-]?\\s*([\\s\\S]+?)(?=\\n\\s*(?:site|customer|quantity|={3,}|[-_]{3,}|rosa|document|sales\\s+order)\\b)`, "i"));
+  if (!match?.[1]) return {};
+  const blockLines = match[1].split("\n").map(clean).filter(Boolean);
+  const name = blockLines[0];
+  const address = blockLines.slice(1).join(", ");
+  return { name, address };
 }
 
 function isWorkOrderMarker(line: string, workOrderNumber?: string) {
@@ -306,6 +334,8 @@ export function parseWorkOrder(rawText: string): InvoiceDraft {
     /^\s*([A-Z]?\d{2,}-\d{3,})\s*$/m
   ]));
   const { address, suite } = parseAddressAndSuite(lines);
+  const companyDetails = inferCompanyDetailsFromHeader(lines);
+  const soldTo = parsePartyBlock(lines, "sold to");
   const items = parseItems(lines, workOrderNumber);
   const totals = calculateTotals(items);
   const standaloneTotalIndex = findStandaloneTotalLineIndex(lines);
@@ -326,8 +356,15 @@ export function parseWorkOrder(rawText: string): InvoiceDraft {
       /(?:id)\s*#?\s*([A-Z0-9-]+?)(?=Contractor|\s|$)/i
     ])),
     workOrderType,
-    contractor: firstMatch(joined, [/(?:contractor|vendor|technician)[ \t]*[:#-][ \t]*([^\n]+)/i]) ?? footerValueAfterTotal(lines, 1),
-    company: firstMatch(joined, [/(?:company|management|client)\s*[:#-]\s*([^\n]+)/i]) ?? inferCompanyFromHeader(lines),
+    contractor: firstMatch(joined, [
+      /(?:work completed by)[ \t]*[:#-]?[ \t]*([^\n]+)/i,
+      /(?:contractor|vendor|technician)[ \t]*[:#-][ \t]*([^\n]+)/i
+    ]) ?? footerValueAfterTotal(lines, 1),
+    company: firstMatch(joined, [/(?:company|management|client)\s*[:#-]\s*([^\n]+)/i]) ?? companyDetails.company,
+    companyAddress: companyDetails.companyAddress,
+    companyPhone: companyDetails.companyPhone,
+    soldToName: soldTo.name,
+    soldToAddress: soldTo.address,
     myCompanyName: "",
     myCompanyGstNumber: "",
     myCompanyAddress: "",

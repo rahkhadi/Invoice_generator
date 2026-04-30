@@ -16,6 +16,10 @@ export type InvoiceDraft = {
   workOrderType?: string;
   contractor?: string;
   company?: string;
+  companyAddress?: string;
+  companyPhone?: string;
+  soldToName?: string;
+  soldToAddress?: string;
   myCompanyName?: string;
   myCompanyGstNumber?: string;
   myCompanyAddress?: string;

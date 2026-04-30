@@ -17,6 +17,10 @@ model Invoice {
   workOrderType    String?
   contractor       String?
   company          String?
+  companyAddress   String?
+  companyPhone     String?
+  soldToName       String?
+  soldToAddress    String?
   myCompanyName    String?
   myCompanyGstNumber String?
   myCompanyAddress String?

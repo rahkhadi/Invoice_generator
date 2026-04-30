@@ -91,6 +91,7 @@ GUR MINOR
 G & © CONTRACTING
 511 MILLWAY AVE.
 CONCORD, ONTARIO L4K 3V4
+P(905)669-9556 F(905)738-1478
 *** SALES ORDER ***
 Sales Order # 457857.00
 Customer Order # S26-00i00e
@@ -118,6 +119,10 @@ UNIT # 3
 `);
 
     expect(salesOrder.company).toBe("G & G CONTRACTING");
+    expect(salesOrder.companyAddress).toContain("511 MILLWAY AVE.");
+    expect(salesOrder.companyPhone).toContain("905");
+    expect(salesOrder.soldToName).toBe("TORONTO COMMUNITY HOUSING");
+    expect(salesOrder.soldToAddress).toContain("35 CARL HALL DRIVE #3");
     expect(salesOrder.workOrderNumber).toBe("S26-001002");
     expect(salesOrder.workOrderId).toBe("457857.00");
     expect(salesOrder.date).toBe("2026-04-09");

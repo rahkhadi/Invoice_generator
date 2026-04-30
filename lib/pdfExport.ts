@@ -30,17 +30,17 @@ export async function buildInvoicePdf(invoice: InvoiceDraft) {
     y -= 34;
 
     page.drawText("From", { x: 48, y, size: 10, font: bold, color: orange });
-    page.drawText("Work Order / Bill To", { x: 320, y, size: 10, font: bold, color: orange });
+    page.drawText("Work Order From", { x: 320, y, size: 10, font: bold, color: orange });
     y -= 16;
     drawClippedText(page, safe(invoice.myCompanyName) || "Your Company", { x: 48, y, size: 11, font: bold, color: navy }, 42);
     drawClippedText(page, safe(invoice.company) || "Work order company", { x: 320, y, size: 11, font: bold, color: navy }, 38);
     y -= 15;
     drawClippedText(page, `GST/HST: ${safe(invoice.myCompanyGstNumber) || ""}`, { x: 48, y, size: 9, font, color: navy }, 44);
-    drawClippedText(page, `Contractor: ${safe(invoice.contractor) || ""}`, { x: 320, y, size: 9, font, color: navy }, 44);
+    drawClippedText(page, safe(invoice.companyAddress), { x: 320, y, size: 9, font, color: navy }, 44);
     y -= 14;
     drawClippedText(page, safe(invoice.myCompanyAddress), { x: 48, y, size: 9, font, color: navy }, 46);
-    drawClippedText(page, `Location: ${safe(invoice.address)} ${safe(invoice.suite) ? `Suite ${safe(invoice.suite)}` : ""}`, { x: 320, y, size: 9, font, color: navy }, 46);
-    y -= 26;
+    drawClippedText(page, safe(invoice.companyPhone), { x: 320, y, size: 9, font, color: navy }, 44);
+    y -= 22;
 
     page.drawText(`Status: ${invoice.status}`, { x: 48, y, size: 9, font, color: navy });
     page.drawText(`Date: ${invoice.date || ""}`, { x: 160, y, size: 9, font, color: navy });
@@ -48,9 +48,17 @@ export async function buildInvoicePdf(invoice: InvoiceDraft) {
     page.drawText(`Order #: ${invoice.workOrderNumber || ""}`, { x: 410, y, size: 9, font, color: navy });
     y -= 14;
     page.drawText(`Id #: ${invoice.workOrderId || ""}`, { x: 48, y, size: 9, font, color: navy });
-    page.drawText(`Classification: ${invoice.classification || ""}`, { x: 160, y, size: 9, font, color: navy });
-    page.drawText(`W/o Type: ${invoice.workOrderType || ""}`, { x: 320, y, size: 9, font, color: navy });
-    y -= 28;
+    page.drawText(`Completed by: ${invoice.contractor || ""}`, { x: 160, y, size: 9, font, color: navy });
+    page.drawText(`W/o Type: ${invoice.workOrderType || ""}`, { x: 360, y, size: 9, font, color: navy });
+    y -= 16;
+    drawClippedText(page, `Sold to: ${safe(invoice.soldToName)}`, { x: 48, y, size: 9, font, color: navy }, 72);
+    y -= 13;
+    drawClippedText(page, `Sold to address: ${safe(invoice.soldToAddress)}`, { x: 48, y, size: 8, font, color: navy }, 94);
+    y -= 13;
+    drawClippedText(page, `Job site: ${safe(invoice.address)} ${safe(invoice.suite) ? `Unit ${safe(invoice.suite)}` : ""}`, { x: 48, y, size: 9, font, color: navy }, 94);
+    y -= 13;
+    page.drawText(`Classification: ${invoice.classification || ""}`, { x: 48, y, size: 9, font, color: navy });
+    y -= 22;
   }
 
   function drawTableHeader() {

@@ -194,7 +194,11 @@ export default function InvoiceEditor({ mode, invoiceId }: { mode: "new" | "edit
               <Field label="Work order #" value={invoice.workOrderNumber || ""} onChange={(v) => updateField("workOrderNumber", v)} />
               <Field label="Work order Id #" value={invoice.workOrderId || ""} onChange={(v) => updateField("workOrderId", v)} />
               <Field label="Work order from" value={invoice.company || ""} onChange={(v) => updateField("company", v)} />
-              <Field label="Contractor" value={invoice.contractor || ""} onChange={(v) => updateField("contractor", v)} />
+              <Field label="Work order company address" value={invoice.companyAddress || ""} onChange={(v) => updateField("companyAddress", v)} />
+              <Field label="Work order company phone" value={invoice.companyPhone || ""} onChange={(v) => updateField("companyPhone", v)} />
+              <Field label="Sold to / original client" value={invoice.soldToName || ""} onChange={(v) => updateField("soldToName", v)} />
+              <Field label="Sold to address" value={invoice.soldToAddress || ""} onChange={(v) => updateField("soldToAddress", v)} />
+              <Field label="Work completed by" value={invoice.contractor || ""} onChange={(v) => updateField("contractor", v)} />
               <Field label="W/o type" value={invoice.workOrderType || ""} onChange={(v) => updateField("workOrderType", v)} />
               <Field label="Classification" value={invoice.classification || ""} onChange={(v) => updateField("classification", v)} />
               <Field label="Address" value={invoice.address || ""} onChange={(v) => updateField("address", v)} />
