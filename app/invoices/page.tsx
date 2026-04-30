@@ -88,9 +88,9 @@ export default function InvoicesPage() {
                   <td className="p-3">{new Date(invoice.updatedAt).toLocaleDateString()}</td>
                   <td className="p-3">
                     <div className="flex gap-2">
-                      <a className="btn-secondary px-3 py-1.5" href={`/api/invoices/${invoice.id}/export`} target="_blank" rel="noreferrer">
+                      <Link className="btn-secondary px-3 py-1.5" href={`/invoices/${invoice.id}/pdf`}>
                         <Eye className="h-4 w-4" />View
-                      </a>
+                      </Link>
                       <a className="btn-secondary px-3 py-1.5" href={`/api/invoices/${invoice.id}/export?download=1`}>
                         <Download className="h-4 w-4" />Download
                       </a>

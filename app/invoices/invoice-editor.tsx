@@ -145,7 +145,7 @@ export default function InvoiceEditor({ mode, invoiceId }: { mode: "new" | "edit
       setMessage("Save the invoice before viewing the PDF.");
       return;
     }
-    window.open(`/api/invoices/${invoiceId}/export`, "_blank");
+    router.push(`/invoices/${invoiceId}/pdf`);
   }
 
   async function deleteInvoice() {
