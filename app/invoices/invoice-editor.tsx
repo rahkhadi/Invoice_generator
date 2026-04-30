@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Plus, Save, Trash2, FileDown, Eye } from "lucide-react";
+import { Plus, Save, Trash2, Eye } from "lucide-react";
 import { calculateTotals } from "@/lib/calculations";
 import type { InvoiceDraft, InvoiceItemDraft, InvoiceStatus } from "@/lib/types";
+import { DownloadPdfButton } from "./download-pdf-button";
 
 const blankItem: InvoiceItemDraft = { area: "GENERAL", description: "", qty: 1, uom: "EA", unitPrice: 0, lineTotal: 0 };
 
@@ -125,21 +126,6 @@ export default function InvoiceEditor({ mode, invoiceId }: { mode: "new" | "edit
     if (mode === "new") router.replace(`/invoices/${saved.id}`);
   }
 
-  async function exportPdf() {
-    if (!invoiceId) {
-      setMessage("Save the invoice before exporting.");
-      return;
-    }
-    const response = await fetch(`/api/invoices/${invoiceId}/export`, { method: "POST" });
-    if (!response.ok) {
-      setMessage("Could not export PDF.");
-      return;
-    }
-    const blob = await response.blob();
-    const url = URL.createObjectURL(blob);
-    window.open(url, "_blank");
-  }
-
   function viewPdf() {
     if (!invoiceId) {
       setMessage("Save the invoice before viewing the PDF.");
@@ -172,7 +158,7 @@ export default function InvoiceEditor({ mode, invoiceId }: { mode: "new" | "edit
           <Link href="/invoices" className="btn-secondary">Invoices</Link>
           <button onClick={saveInvoice} disabled={saving} className="btn-primary"><Save className="h-4 w-4" />{saving ? "Saving..." : "Save"}</button>
           <button onClick={viewPdf} className="btn-secondary"><Eye className="h-4 w-4" />View PDF</button>
-          <button onClick={exportPdf} className="btn-secondary"><FileDown className="h-4 w-4" />Export PDF</button>
+          {invoiceId ? <DownloadPdfButton invoiceId={invoiceId} label="Download PDF" className="btn-secondary" /> : <button onClick={() => setMessage("Save the invoice before downloading.")} className="btn-secondary">Download PDF</button>}
           {mode === "edit" ? <button onClick={deleteInvoice} className="btn-secondary text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" />Delete</button> : null}
         </div>
       </div>

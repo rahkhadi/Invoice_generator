@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Eye, Search, Trash2 } from "lucide-react";
+import { Eye, Search, Trash2 } from "lucide-react";
+import { DownloadPdfButton } from "./download-pdf-button";
 
 type InvoiceRow = {
   id: string;
@@ -91,9 +92,7 @@ export default function InvoicesPage() {
                       <Link className="btn-secondary px-3 py-1.5" href={`/invoices/${invoice.id}/pdf`}>
                         <Eye className="h-4 w-4" />View
                       </Link>
-                      <a className="btn-secondary px-3 py-1.5" href={`/api/invoices/${invoice.id}/export?download=1`}>
-                        <Download className="h-4 w-4" />Download
-                      </a>
+                      <DownloadPdfButton invoiceId={invoice.id} label="Download" className="btn-secondary px-3 py-1.5" />
                       <button className="btn-secondary px-3 py-1.5 text-red-600 hover:bg-red-50" onClick={() => deleteInvoice(invoice.id, invoice.invoiceNumber)}>
                         <Trash2 className="h-4 w-4" />Delete
                       </button>

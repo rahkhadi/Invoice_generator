@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft } from "lucide-react";
+import { DownloadPdfButton } from "../../download-pdf-button";
 
 export default async function InvoicePdfPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -13,9 +14,7 @@ export default async function InvoicePdfPage({ params }: { params: Promise<{ id:
             <ArrowLeft className="h-4 w-4" />Back to invoice
           </Link>
         </div>
-        <a href={`${pdfUrl}?download=1`} className="btn-primary">
-          <Download className="h-4 w-4" />Download PDF
-        </a>
+        <DownloadPdfButton invoiceId={id} />
       </div>
       <div className="min-h-[70vh] flex-1 overflow-hidden rounded-md border border-slate-200 bg-white shadow-sm">
         <iframe title="Invoice PDF preview" src={pdfUrl} className="h-full min-h-[78vh] w-full" />
