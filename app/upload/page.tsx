@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { UploadCloud } from "lucide-react";
+import { FileText, Plus, UploadCloud } from "lucide-react";
 import type { InvoiceDraft } from "@/lib/types";
 
 export default function UploadPage() {
@@ -10,6 +10,7 @@ export default function UploadPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [status, setStatus] = useState("");
+  const [selectedFileName, setSelectedFileName] = useState("");
 
   function isImageFile(file: File) {
     return /^image\/(png|jpe?g|webp)$/i.test(file.type) || /\.(png|jpe?g|webp)$/i.test(file.name);
@@ -120,24 +121,53 @@ export default function UploadPage() {
   }
 
   return (
-    <section className="p-5 md:p-8">
-      <div className="max-w-3xl">
-        <h1 className="text-2xl font-bold text-slate-950">Create Invoice</h1>
-        <p className="mt-1 text-sm text-slate-500">Upload a work order PDF/image or start manually for a quotation/new customer.</p>
-        <div className="mt-5 rounded-md border border-slate-200 bg-white p-5 shadow-sm">
-          <h2 className="font-semibold text-slate-950">Manual invoice</h2>
-          <p className="mt-1 text-sm text-slate-500">Prepare an invoice or quotation without a work order PDF.</p>
-          <button className="btn-primary mt-4" onClick={createManualInvoice}>Create manually</button>
+    <section className="page-shell">
+      <div className="max-w-4xl">
+        <div className="mb-6">
+          <p className="text-xs font-semibold uppercase tracking-wide text-orange-600">Invoice workspace</p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight text-slate-950">Create Invoice</h1>
+          <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">Upload a work order PDF or photo, or create a clean manual invoice for a new customer.</p>
         </div>
-        <form onSubmit={onSubmit} className="mt-6 rounded-md border border-dashed border-slate-300 bg-white p-8 shadow-sm">
-          <div className="flex flex-col items-center gap-4 text-center">
-            <UploadCloud className="h-12 w-12 text-orange-500" />
-            <input name="file" type="file" accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp" required className="w-full max-w-md" />
-            {error ? <p className="text-sm font-medium text-red-600">{error}</p> : null}
-            {status ? <p className="text-sm font-medium text-slate-600">{status}</p> : null}
-            <button disabled={busy} className="btn-primary" type="submit">{busy ? "Parsing file..." : "Parse work order"}</button>
+
+        <div className="grid gap-4 lg:grid-cols-[0.9fr_1.1fr]">
+          <div className="panel p-5">
+            <div className="flex h-full flex-col justify-between gap-6">
+              <div>
+                <div className="mb-4 inline-flex h-10 w-10 items-center justify-center rounded-md bg-orange-50 text-orange-600">
+                  <Plus className="h-5 w-5" />
+                </div>
+                <h2 className="text-lg font-semibold text-slate-950">Manual invoice</h2>
+                <p className="mt-2 text-sm leading-6 text-slate-500">Prepare an invoice or quotation without a work order file.</p>
+              </div>
+              <button className="btn-primary w-fit" onClick={createManualInvoice}>Create manually</button>
+            </div>
           </div>
-        </form>
+
+          <form onSubmit={onSubmit} className="panel p-5">
+            <div className="rounded-md border border-dashed border-slate-300 bg-slate-50/70 px-5 py-8 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-md bg-white text-orange-500 shadow-sm">
+                <UploadCloud className="h-7 w-7" />
+              </div>
+              <h2 className="text-lg font-semibold text-slate-950">Upload work order</h2>
+              <p className="mx-auto mt-2 max-w-md text-sm leading-6 text-slate-500">PDF, JPG, PNG, or WEBP. Photos are read on your device before the invoice draft is created.</p>
+              <label className="mx-auto mt-5 flex max-w-md cursor-pointer items-center justify-center gap-3 rounded-md border border-slate-300 bg-white px-4 py-3 text-sm font-medium normal-case tracking-normal text-slate-700 shadow-sm transition hover:border-orange-300 hover:bg-orange-50/50">
+                <FileText className="h-4 w-4 text-orange-500" />
+                <span>{selectedFileName || "Choose work order file"}</span>
+                <input
+                  name="file"
+                  type="file"
+                  accept="application/pdf,.pdf,image/png,image/jpeg,image/webp,.png,.jpg,.jpeg,.webp"
+                  required
+                  className="sr-only"
+                  onChange={(event) => setSelectedFileName(event.target.files?.[0]?.name || "")}
+                />
+              </label>
+              {error ? <p className="mt-4 text-sm font-medium text-red-600">{error}</p> : null}
+              {status ? <p className="mt-4 text-sm font-medium text-slate-600">{status}</p> : null}
+              <button disabled={busy} className="btn-primary mt-5" type="submit">{busy ? "Parsing file..." : "Parse work order"}</button>
+            </div>
+          </form>
+        </div>
       </div>
     </section>
   );

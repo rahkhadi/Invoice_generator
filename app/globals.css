@@ -8,14 +8,16 @@
 
 body {
   margin: 0;
-  background: #f3f6f9;
+  background: #f5f7fa;
   color: #111827;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
 }
 
 input,
 select,
 textarea {
-  @apply rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition focus:border-orange-500 focus:ring-2 focus:ring-orange-200;
+  @apply rounded-md border border-slate-300 bg-white px-3 py-2 text-sm shadow-sm outline-none transition placeholder:text-slate-400 focus:border-orange-500 focus:ring-2 focus:ring-orange-100;
 }
 
 label {
@@ -27,5 +29,13 @@ label {
 }
 
 .btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:bg-slate-50;
+  @apply inline-flex items-center justify-center gap-2 rounded-md border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 shadow-sm transition hover:border-slate-400 hover:bg-slate-50;
+}
+
+.panel {
+  @apply rounded-md border border-slate-200 bg-white shadow-sm;
+}
+
+.page-shell {
+  @apply mx-auto w-full max-w-6xl p-5 md:p-8;
 }
