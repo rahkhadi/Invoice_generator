@@ -85,4 +85,49 @@ GUR MINOR
     expect(compact.items[2]).toMatchObject({ area: "GENERAL", qty: 59, uom: "LM", lineTotal: 331.04 });
     expect(compact.total).toBe(1152.74);
   });
+
+  it("parses sales order image OCR without pricing into editable line items", () => {
+    const salesOrder = parseWorkOrder(`
+G & © CONTRACTING
+511 MILLWAY AVE.
+CONCORD, ONTARIO L4K 3V4
+*** SALES ORDER ***
+Sales Order # 457857.00
+Customer Order # S26-00i00e
+Order Date 2026-04-09
+Sold To: TORONTO COMMUNITY HOUSING
+ACCOUNTS PAYABLE UNIT
+35 CARL HALL DRIVE #3
+TORONTO, ONTARIO
+Site: TORONTO COMMUNITY HOUSING CORP
+SHEPPARD/YATESCASTLE OUD
+1898 SHEPPARD AVE. W., # 3
+TORONTO, ONTARIO
+Quantity Product Description UM
+1 *CT 3 BEDROOM UNIT 2 LEVEL: PAINT EA
+COMPLETE. INCLUDES CAULKING ALL BASEBOARDS AND TRIMS.
+2 *CT MULTI-LAYER WORK, INCLUDING REPAIRS EA
+1 *CT REMOVAL OF EXISTING WALLPAPER AND/OR EA
+BORDERS AND MAKE GOOD ANY WALL DAMAGE CAUSED BY REMOVAL.
+1 *CT S/I MDF COUNTERTOP INCLUDING CUT OUT EA
+FOR KITCHEN SINK TO INCLUDE REUSING OF EXISTING FAUCET, SINK AND RELATED PLUMBING.
+1 *CT PROVIDE NEW VANITY SINK IN EXISTING EA
+2 BATHROOMS
+Vendor # 22370
+UNIT # 3
+`);
+
+    expect(salesOrder.company).toBe("G & G CONTRACTING");
+    expect(salesOrder.workOrderNumber).toBe("S26-001002");
+    expect(salesOrder.workOrderId).toBe("457857.00");
+    expect(salesOrder.date).toBe("2026-04-09");
+    expect(salesOrder.address).toContain("1898 SHEPPARD AVE. W.");
+    expect(salesOrder.suite).toBe("3");
+    expect(salesOrder.classification).toBeUndefined();
+    expect(salesOrder.items.length).toBeGreaterThanOrEqual(5);
+    expect(salesOrder.items[0]).toMatchObject({ area: "BEDROOM", qty: 1, uom: "EA", unitPrice: 0, lineTotal: 0 });
+    expect(salesOrder.items.some((item) => item.area === "KITCHEN" && item.description.includes("KITCHEN SINK"))).toBe(true);
+    expect(salesOrder.subtotal).toBe(0);
+    expect(salesOrder.total).toBe(0);
+  });
 });

@@ -28,7 +28,12 @@ function firstMatch(text: string, patterns: RegExp[]) {
 }
 
 function clean(value: string) {
-  return value.replace(/\s+/g, " ").replace(/[#: -]+$/g, "").trim();
+  return value
+    .replace(/©/g, "G")
+    .replace(/§/g, "#")
+    .replace(/\s+/g, " ")
+    .replace(/[#: -]+$/g, "")
+    .trim();
 }
 
 function money(value?: string) {
@@ -38,6 +43,8 @@ function money(value?: string) {
 
 function normalizeDate(value?: string) {
   if (!value) return undefined;
+  const iso = value.match(/\b(\d{4})-(\d{1,2})-(\d{1,2})\b/);
+  if (iso) return `${iso[1]}-${iso[2].padStart(2, "0")}-${iso[3].padStart(2, "0")}`;
   const date = new Date(value);
   if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
   const parts = value.match(/(\d{1,2})[/-](\d{1,2})[/-](\d{2,4})/);
@@ -49,21 +56,28 @@ function normalizeDate(value?: string) {
 }
 
 function findDates(text: string) {
-  return Array.from(text.matchAll(/(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4}/gi))
+  return Array.from(text.matchAll(/(?:Jan(?:uary)?|Feb(?:ruary)?|Mar(?:ch)?|Apr(?:il)?|May|Jun(?:e)?|Jul(?:y)?|Aug(?:ust)?|Sep(?:t(?:ember)?)?|Oct(?:ober)?|Nov(?:ember)?|Dec(?:ember)?)\s+\d{1,2},?\s+\d{4}|\b\d{4}-\d{1,2}-\d{1,2}\b|\b\d{1,2}[/-]\d{1,2}[/-]\d{2,4}\b/gi))
     .map((match) => normalizeDate(match[0]))
     .filter((value): value is string => Boolean(value));
 }
 
 function parseAddressAndSuite(lines: string[]) {
-  const suitePattern = /\b(?:suite|unit|apt|apartment|#)\s*[:#-]?\s*([A-Za-z0-9-]+)/i;
+  const suitePattern = /(?:\b(?:suite|unit|apt|apartment)\s*[:#-]?|[#¥]\s*)\s*([A-Za-z0-9-]+)/i;
+  const joinedLines = lines.join("\n");
+  const siteBlock = joinedLines.match(/site\s*[:#-]?\s*([\s\S]+?)(?=\n\s*(?:customer|quantity|={3,}|[-_]{3,}|rosa|document)\b)/i)?.[1];
+  const siteAddressLine = siteBlock
+    ?.split("\n")
+    .map(clean)
+    .find((line) => /\d{1,6}\s+[\w\s.'-]+(?:street|st|road|rd|avenue|ave|drive|dr|blvd|boulevard|lane|ln|court|ct|way|crescent|cres)\.?\b/i.test(line));
   const explicitAddress = firstMatch(lines.join("\n"), [
     /(?:location|address|site)\s*[:#-]?\s*([^\n]+)/i,
     /(?:service address|job address)\s*[:#-]\s*([^\n]+)/i
   ]);
   const addressLine =
+    siteAddressLine ??
     explicitAddress ??
     lines.find((line) => /\d{1,6}\s+[\w\s.'-]+(?:street|st|road|rd|avenue|ave|drive|dr|blvd|boulevard|lane|ln|court|ct|way|crescent|cres)\b/i.test(line));
-  const suite = firstMatch(lines.join("\n"), [suitePattern]) ?? addressLine?.match(suitePattern)?.[1];
+  const suite = addressLine?.match(suitePattern)?.[1] ?? siteBlock?.match(suitePattern)?.[1] ?? firstMatch(lines.join("\n"), [suitePattern]);
   const address = addressLine
     ? clean(
         addressLine
@@ -73,6 +87,29 @@ function parseAddressAndSuite(lines: string[]) {
       )
     : undefined;
   return { address, suite };
+}
+
+function normalizeOrderNumber(value?: string) {
+  if (!value) return undefined;
+  const cleaned = clean(value).replace(/\s/g, "").replace(/[.,]+$/g, "");
+  return cleaned.replace(/([A-Z]*\d{1,4}-)([A-Z0-9]+)/i, (_, prefix: string, suffix: string) => {
+    const normalizedSuffix = suffix
+      .replace(/[oO]/g, "0")
+      .replace(/[iIlL]/g, "1")
+      .replace(/[eEzZ]/g, "2");
+    return `${prefix.toUpperCase()}${normalizedSuffix}`;
+  });
+}
+
+function inferArea(description: string, fallback: string) {
+  const upper = description.toUpperCase();
+  if (upper.includes("KITCHEN")) return "KITCHEN";
+  if (upper.includes("BATH")) return "BATHROOM";
+  if (upper.includes("BASEMENT")) return "BASEMENT";
+  if (upper.includes("BEDROOM")) return "BEDROOM";
+  if (upper.includes("STAIR")) return "HALLWAY";
+  if (upper.includes("EXTERIOR")) return "EXTERIOR";
+  return fallback;
 }
 
 function findStandaloneTotalLineIndex(lines: string[]) {
@@ -139,12 +176,68 @@ function parseItems(lines: string[], workOrderNumber?: string) {
   const items: InvoiceItemDraft[] = [];
   let currentArea = "GENERAL";
   let descriptionBuffer: string[] = [];
+  const unpricedItems: InvoiceItemDraft[] = [];
+  let inUnpricedTable = false;
+  let pendingUnpriced:
+    | {
+        area: string;
+        descriptionParts: string[];
+        qty: number;
+        uom?: string;
+      }
+    | undefined;
   const itemPattern =
     /^(?:(?<area>[A-Z][A-Z\s]{2,})\s+)?(?<description>.*?[A-Za-z][A-Za-z0-9\s,./'()&-]+?)\s+(?<qty>\d+(?:\.\d+)?)\s*(?<uom>EA|EACH|HR|HRS|HOUR|HOURS|SQFT|SF|LF|FT|M|DAY|DAYS|UNIT|UNITS|LOT)?\s+\$?(?<unit>\d[\d,]*(?:\.\d{2})?)\s+\$?(?<total>\d[\d,]*(?:\.\d{2})?)$/i;
+
+  const flushUnpriced = () => {
+    if (!pendingUnpriced) return;
+    const description = clean(pendingUnpriced.descriptionParts.join(" "));
+    if (description.length >= 3) {
+      unpricedItems.push({
+        area: pendingUnpriced.area,
+        description,
+        qty: pendingUnpriced.qty,
+        uom: pendingUnpriced.uom || "EA",
+        unitPrice: 0,
+        lineTotal: 0
+      });
+    }
+    pendingUnpriced = undefined;
+  };
 
   for (const rawLine of lines) {
     const line = clean(rawLine);
     if (!line || /subtotal|hst|tax|total|amount due|documentdescriptionlocationqty/i.test(line)) continue;
+    if (/quantity\s+product|description\s+u[mo]\b|description\s+location\s+qty/i.test(line)) {
+      inUnpricedTable = true;
+      continue;
+    }
+    if (/^(vendor|unit\s*#|work completed|customer signature|printed on)\b/i.test(line)) {
+      flushUnpriced();
+      inUnpricedTable = false;
+      continue;
+    }
+    if (inUnpricedTable) {
+      const unpricedMatch = line.match(
+        /^(?<qty>\d+(?:\.\d+)?)\.?\s+[*¥%xX]?\s*(?:CT|C1|GT|G1|¥CT|%T|Tec)\s+(?<description>.+?)(?:\s+(?<uom>EA|EACH|LM|LH|LF|FT|SF|UM))?\s*$/i
+      );
+      if (unpricedMatch?.groups) {
+        flushUnpriced();
+        const description = clean(unpricedMatch.groups.description);
+        pendingUnpriced = {
+          area: inferArea(description, currentArea),
+          descriptionParts: [description],
+          qty: Number(unpricedMatch.groups.qty) || 1,
+          uom: unpricedMatch.groups.uom?.toUpperCase().replace("EACH", "EA").replace("LH", "LM").replace("UM", "EA")
+        };
+        continue;
+      }
+      if (pendingUnpriced && !/^[=_-]{3,}/.test(line)) {
+        pendingUnpriced.descriptionParts.push(line);
+        pendingUnpriced.area = inferArea(line, pendingUnpriced.area);
+        continue;
+      }
+    }
     if (isWorkOrderMarker(line, workOrderNumber)) {
       descriptionBuffer = [];
       continue;
@@ -194,7 +287,8 @@ function parseItems(lines: string[], workOrderNumber?: string) {
     });
   }
 
-  return items;
+  flushUnpriced();
+  return items.length ? items : unpricedItems;
 }
 
 export function parseWorkOrder(rawText: string): InvoiceDraft {
@@ -205,11 +299,12 @@ export function parseWorkOrder(rawText: string): InvoiceDraft {
     .filter(Boolean);
   const joined = lines.join("\n");
   const dates = findDates(joined);
-  const workOrderNumber = firstMatch(joined, [
+  const workOrderNumber = normalizeOrderNumber(firstMatch(joined, [
+    /(?:customer\s+order)\s*(?:number|no|#)?\s*[:#-]?\s*([A-Z0-9-]+)/i,
     /(?:order)\s*(?:number|no|#)\s*[:#-]?\s*([A-Z0-9-]+?)(?=Order\s+total|\s|$)/i,
     /(?:work\s*order|\bwo\b|\bw\/o\b)\s*(?:number|no|#)\s*[:#-]?\s*([A-Z0-9-]+)/i,
     /^\s*([A-Z]?\d{2,}-\d{3,})\s*$/m
-  ]);
+  ]));
   const { address, suite } = parseAddressAndSuite(lines);
   const items = parseItems(lines, workOrderNumber);
   const totals = calculateTotals(items);
@@ -226,7 +321,10 @@ export function parseWorkOrder(rawText: string): InvoiceDraft {
   const draft: InvoiceDraft = {
     invoiceNumber: `INV-${new Date().toISOString().slice(0, 10).replaceAll("-", "")}-${Math.floor(Math.random() * 9000 + 1000)}`,
     workOrderNumber,
-    workOrderId: firstMatch(joined, [/(?:id)\s*#?\s*([A-Z0-9-]+?)(?=Contractor|\s|$)/i]),
+    workOrderId: normalizeOrderNumber(firstMatch(joined, [
+      /(?:sales\s+order)\s*#?\s*([A-Z0-9.-]+)/i,
+      /(?:id)\s*#?\s*([A-Z0-9-]+?)(?=Contractor|\s|$)/i
+    ])),
     workOrderType,
     contractor: firstMatch(joined, [/(?:contractor|vendor|technician)[ \t]*[:#-][ \t]*([^\n]+)/i]) ?? footerValueAfterTotal(lines, 1),
     company: firstMatch(joined, [/(?:company|management|client)\s*[:#-]\s*([^\n]+)/i]) ?? inferCompanyFromHeader(lines),
@@ -235,9 +333,12 @@ export function parseWorkOrder(rawText: string): InvoiceDraft {
     myCompanyAddress: "",
     address,
     suite,
-    classification: firstMatch(joined, [/(?:classification|work type|trade|category)\s*[:#-]?\s*([^\n]+)/i]),
-    date: normalizeDate(firstMatch(joined, [/(?:date|created|issued)\s*[:#-]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/i])) ?? dates[0],
-    deadline: normalizeDate(firstMatch(joined, [/(?:deadline|required by|due date|complete by)\s*[:#-]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/i])) ?? dates[1],
+    classification: firstMatch(joined, [
+      /(?:move\s+out\s+unit)/i,
+      /(?:classification|work type|trade|category)\s*[:#-]?\s*([^\n]+)/i
+    ]) ?? (/\bmove\s+out\s+unit\b/i.test(joined) ? "MOVE OUT UNIT" : undefined),
+    date: normalizeDate(firstMatch(joined, [/(?:date|created|issued)\s*[:#-]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4}|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/i])) ?? dates[0],
+    deadline: normalizeDate(firstMatch(joined, [/(?:deadline|required by|due date|complete by)\s*[:#-]?\s*([A-Za-z]+\s+\d{1,2},?\s+\d{4}|\d{4}-\d{1,2}-\d{1,2}|\d{1,2}[/-]\d{1,2}[/-]\d{2,4})/i])) ?? dates[1],
     subtotal: totals.subtotal,
     hst: totals.hst,
     total: explicitTotal > 0 ? explicitTotal : totals.total,
