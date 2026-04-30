@@ -1,3 +1,4 @@
+import { PDFDocument } from "pdf-lib";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/prisma", () => ({
@@ -24,7 +25,14 @@ vi.mock("@/lib/prisma", () => ({
         rawExtractedText: "",
         uploadedPdfUrl: "",
         generatedPdfUrl: "",
-        items: [{ area: "GENERAL", description: "Labour", qty: 1, uom: "HR", unitPrice: 100, lineTotal: 100 }]
+        items: Array.from({ length: 45 }, (_, index) => ({
+          area: index % 2 ? "BATHROOM" : "GENERAL",
+          description: `Detailed construction line item ${index + 1}`,
+          qty: 1,
+          uom: "EA",
+          unitPrice: 100,
+          lineTotal: 100
+        }))
       })),
       update: vi.fn(async () => ({}))
     }
@@ -47,5 +55,7 @@ describe("invoice PDF export route", () => {
     expect(response.headers.get("content-type")).toBe("application/pdf");
     const bytes = Buffer.from(await response.arrayBuffer());
     expect(bytes.subarray(0, 4).toString()).toBe("%PDF");
+    const pdf = await PDFDocument.load(bytes);
+    expect(pdf.getPageCount()).toBeGreaterThan(1);
   });
 });

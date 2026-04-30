@@ -41,6 +41,16 @@ export async function extractPdfOcrText(buffer: Buffer, maxPages = 3) {
   }
 }
 
+export async function extractImageOcrText(buffer: Buffer) {
+  const worker = await createWorker("eng");
+  try {
+    const result = await worker.recognize(buffer);
+    return result.data.text;
+  } finally {
+    await worker.terminate();
+  }
+}
+
 export async function extractPdfText(buffer: Buffer) {
   const parsed = await pdfParse(buffer);
   const text = parsed.text ?? "";
