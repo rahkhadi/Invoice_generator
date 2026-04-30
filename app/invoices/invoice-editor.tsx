@@ -148,6 +148,17 @@ export default function InvoiceEditor({ mode, invoiceId }: { mode: "new" | "edit
     window.open(`/api/invoices/${invoiceId}/export`, "_blank");
   }
 
+  async function deleteInvoice() {
+    if (!invoiceId) return;
+    if (!window.confirm(`Delete invoice ${invoice.invoiceNumber} and its uploaded/generated files?`)) return;
+    const response = await fetch(`/api/invoices/${invoiceId}`, { method: "DELETE" });
+    if (!response.ok) {
+      setMessage("Could not delete invoice.");
+      return;
+    }
+    router.push("/invoices");
+  }
+
   if (loading) return <section className="p-8 text-sm text-slate-500">Loading invoice...</section>;
 
   return (
@@ -162,6 +173,7 @@ export default function InvoiceEditor({ mode, invoiceId }: { mode: "new" | "edit
           <button onClick={saveInvoice} disabled={saving} className="btn-primary"><Save className="h-4 w-4" />{saving ? "Saving..." : "Save"}</button>
           <button onClick={viewPdf} className="btn-secondary"><Eye className="h-4 w-4" />View PDF</button>
           <button onClick={exportPdf} className="btn-secondary"><FileDown className="h-4 w-4" />Export PDF</button>
+          {mode === "edit" ? <button onClick={deleteInvoice} className="btn-secondary text-red-600 hover:bg-red-50"><Trash2 className="h-4 w-4" />Delete</button> : null}
         </div>
       </div>
 

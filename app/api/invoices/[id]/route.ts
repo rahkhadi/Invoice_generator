@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { dateOrNull, normalizeInvoicePayload, serializeInvoice } from "@/lib/invoicePayload";
 import { getCurrentUser } from "@/lib/auth";
+import { deleteObject, deleteStoredUrl } from "@/lib/storage";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -69,6 +70,13 @@ export async function DELETE(_: Request, { params }: { params: Promise<{ id: str
   if (!user) return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   const existing = await prisma.invoice.findUnique({ where: { id } });
   if (!existing || existing.userId !== user.id) return NextResponse.json({ error: "Invoice not found." }, { status: 404 });
+  const exportFileName = `${existing.invoiceNumber.replace(/[^a-z0-9-]/gi, "_")}.pdf`;
+  await Promise.allSettled([
+    deleteStoredUrl(existing.uploadedPdfUrl),
+    deleteStoredUrl(existing.generatedPdfUrl),
+    deleteObject(`exports/${existing.userId}/${exportFileName}`),
+    deleteObject(`exports/${exportFileName}`)
+  ]);
   await prisma.invoice.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

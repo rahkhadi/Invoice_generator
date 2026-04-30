@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { Download, Eye, Search } from "lucide-react";
+import { Download, Eye, Search, Trash2 } from "lucide-react";
 
 type InvoiceRow = {
   id: string;
@@ -23,6 +23,16 @@ export default function InvoicesPage() {
   useEffect(() => {
     fetch("/api/invoices").then((response) => response.json()).then(setInvoices);
   }, []);
+
+  async function deleteInvoice(id: string, invoiceNumber: string) {
+    if (!window.confirm(`Delete invoice ${invoiceNumber} and its uploaded/generated files?`)) return;
+    const response = await fetch(`/api/invoices/${id}`, { method: "DELETE" });
+    if (!response.ok) {
+      window.alert("Could not delete this invoice.");
+      return;
+    }
+    setInvoices((current) => current.filter((invoice) => invoice.id !== id));
+  }
 
   const filtered = useMemo(() => {
     const q = query.toLowerCase();
@@ -64,7 +74,7 @@ export default function InvoicesPage() {
                 <th className="p-3">Status</th>
                 <th className="p-3">Total</th>
                 <th className="p-3">Updated</th>
-                <th className="p-3">PDF</th>
+                <th className="p-3">Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -84,6 +94,9 @@ export default function InvoicesPage() {
                       <a className="btn-secondary px-3 py-1.5" href={`/api/invoices/${invoice.id}/export?download=1`}>
                         <Download className="h-4 w-4" />Download
                       </a>
+                      <button className="btn-secondary px-3 py-1.5 text-red-600 hover:bg-red-50" onClick={() => deleteInvoice(invoice.id, invoice.invoiceNumber)}>
+                        <Trash2 className="h-4 w-4" />Delete
+                      </button>
                     </div>
                   </td>
                 </tr>

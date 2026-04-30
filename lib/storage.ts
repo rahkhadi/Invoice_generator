@@ -1,6 +1,7 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { rm } from "node:fs/promises";
+import { DeleteObjectCommand, GetObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 
 type StoredObject = {
   key: string;
@@ -58,6 +59,31 @@ export async function putObject(key: string, body: Buffer, contentType: string, 
   await mkdir(path.dirname(diskPath), { recursive: true });
   await writeFile(diskPath, body);
   return { key: localPublicPath, url: `/${localPublicPath}` };
+}
+
+export async function deleteObject(key: string) {
+  if (!key) return;
+  const config = storageConfig();
+  const client = s3Client();
+  const normalizedKey = key.replace(/^\/+/, "");
+  if (client && config.bucket) {
+    await client.send(new DeleteObjectCommand({ Bucket: config.bucket, Key: normalizedKey }));
+    return;
+  }
+  await rm(path.join(process.cwd(), "public", normalizedKey), { force: true });
+}
+
+export async function deleteStoredUrl(url?: string | null) {
+  if (!url) return;
+  const config = storageConfig();
+  const publicBase = config.publicBaseUrl?.replace(/\/$/, "");
+  if (publicBase && url.startsWith(`${publicBase}/`)) {
+    await deleteObject(url.slice(publicBase.length + 1));
+    return;
+  }
+  if (url.startsWith("/uploads/") || url.startsWith("/exports/")) {
+    await deleteObject(url);
+  }
 }
 
 export async function getObject(key: string) {
